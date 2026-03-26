@@ -843,6 +843,13 @@ let currentFilter = 'all';
 let q1Answer = -1;
 let q2Answer = -1;
 
+// ---- INTEGRATIONS ----
+// TODO: Replace with your n8n webhook URL before launch
+const WEBHOOK_URL = null; // 'https://your-n8n-instance/webhook/tariffback-lead'
+
+// TODO: Replace with your Calendly booking link before launch
+const CALENDLY_URL = null; // 'https://calendly.com/jordan-creditpulse/tariff-assessment'
+
 // ---- IEEPA HTS CODES ----
 const IEEPA_PREFIXES = [
   '9903.01.10','9903.01.11','9903.01.12','9903.01.20','9903.01.21','9903.01.22',
@@ -931,7 +938,6 @@ function parseACEData(rows) {
     return;
   }
 
-  const keys = Object.keys(rows[0]).map(k => k.toLowerCase().trim());
   const findCol = (...names) => {
     for (const n of names) {
       const match = Object.keys(rows[0]).find(k => k.toLowerCase().includes(n));
@@ -940,16 +946,20 @@ function parseACEData(rows) {
     return null;
   };
 
-  const entryCol = findCol('entry number', 'entry no', 'entry_number', 'entry#');
-  const dateCol = findCol('entry date', 'import date', 'entry_date');
-  const htsCol = findCol('hts', 'tariff', 'harmonized');
-  const dutyCol = findCol('duty', 'duties paid', 'duty amount', 'total duty');
-  const countryCol = findCol('country', 'origin', 'coo');
-  const liqStatusCol = findCol('liquidation status', 'liq status', 'liquidation');
-  const liqDateCol = findCol('liquidation date', 'liq date');
+  const entryCol     = findCol('entry number', 'entry no', 'entry#');
+  const dateCol      = findCol('import date', 'entry date', 'entry_date');
+  const htsCol       = findCol('hts number', 'hts no', 'hts');
+  const countryCol   = findCol('country of origin', 'country', 'origin', 'coo');
+  const liqStatusCol = findCol('liquidation status', 'liq status');
+  const liqDateCol   = findCol('liquidation date', 'liq date');
 
-  if (!htsCol || !dutyCol) {
-    showError('Required columns not found. Please ensure your file includes HTS Number and Duty Amount columns. Export the ES-003 "Entry Summary Line Tariff Details" report from your ACE portal.');
+  // Strategy A: dedicated IEEPA Duty Amount column (standard ACE ES-003 format)
+  const ieepaDutyCol = findCol('ieepa duty');
+  // Strategy B: HTS code filtering (some broker export formats)
+  const dutyCol = ieepaDutyCol ? null : findCol('duty amount', 'duties paid', 'total duty', 'duty');
+
+  if (!ieepaDutyCol && !htsCol) {
+    showError('Required columns not found. Please ensure your file includes "IEEPA Duty Amount" or "HTS Number" columns. Export the ES-003 "Entry Summary Line Tariff Details" report from your ACE portal.');
     return;
   }
 
@@ -957,7 +967,7 @@ function parseACEData(rows) {
 
   const steps = [
     'Reading entry data...',
-    'Identifying IEEPA tariff lines (9903.01.xx / 9903.02.xx)...',
+    'Identifying IEEPA tariff lines...',
     'Calculating refund exposure...',
     'Checking protest deadlines...',
     'Building summary...'
@@ -972,31 +982,42 @@ function parseACEData(rows) {
   setTimeout(() => {
     clearInterval(iv);
 
-    // Group by entry, filter IEEPA lines
     const entryMap = {};
     for (const row of rows) {
-      const hts = String(row[htsCol] || '');
-      if (!isIEEPA(hts)) continue;
+      let ieepaDuty = 0;
+      let tariffType = 'IEEPA';
 
-      const entryNum = entryCol ? String(row[entryCol] || '').trim() : 'Unknown';
-      const duty = parseFloat(String(row[dutyCol] || '0').replace(/[$,]/g, '')) || 0;
-      const date = dateCol ? String(row[dateCol] || '').trim() : '';
-      const country = countryCol ? String(row[countryCol] || '').trim() : '';
+      if (ieepaDutyCol) {
+        // Strategy A: use dedicated IEEPA Duty Amount column
+        ieepaDuty = parseFloat(String(row[ieepaDutyCol] || '0').replace(/[$,]/g, '')) || 0;
+        if (ieepaDuty === 0) continue;
+        const co = String(row[countryCol] || '').trim().toUpperCase();
+        tariffType = ['CN', 'CHINA', 'CA', 'CANADA', 'MX', 'MEXICO'].includes(co) ? 'Fentanyl' : 'Reciprocal';
+      } else {
+        // Strategy B: filter by 9903.xx HTS prefix
+        const hts = String(row[htsCol] || '');
+        if (!isIEEPA(hts)) continue;
+        ieepaDuty = parseFloat(String(row[dutyCol] || '0').replace(/[$,]/g, '')) || 0;
+        tariffType = getTariffType(hts);
+      }
+
+      const entryNum  = entryCol     ? String(row[entryCol]     || '').trim() : 'Unknown';
+      const date      = dateCol      ? String(row[dateCol]      || '').trim() : '';
+      const country   = countryCol   ? String(row[countryCol]   || '').trim() : '';
       const liqStatus = liqStatusCol ? String(row[liqStatusCol] || '').trim() : '';
-      const liqDate = liqDateCol ? String(row[liqDateCol] || '').trim() : '';
+      const liqDate   = liqDateCol   ? String(row[liqDateCol]   || '').trim() : '';
 
       if (!entryMap[entryNum]) {
-        entryMap[entryNum] = { entry: entryNum, date, country, duty: 0, hts, liqStatus, liqDate, types: new Set() };
+        entryMap[entryNum] = { entry: entryNum, date, country, duty: 0, liqStatus, liqDate, types: new Set() };
       }
-      entryMap[entryNum].duty += duty;
-      entryMap[entryNum].types.add(getTariffType(hts));
-      if (liqDate && !entryMap[entryNum].liqDate) entryMap[entryNum].liqDate = liqDate;
+      entryMap[entryNum].duty += ieepaDuty;
+      entryMap[entryNum].types.add(tariffType);
+      if (liqDate   && !entryMap[entryNum].liqDate)   entryMap[entryNum].liqDate   = liqDate;
       if (liqStatus && !entryMap[entryNum].liqStatus) entryMap[entryNum].liqStatus = liqStatus;
     }
 
     if (Object.keys(entryMap).length === 0) {
-      clearInterval(iv);
-      showError('No IEEPA tariff lines found in this file. Make sure you\'re running the ES-003 report and that entries fall within February 4, 2025 – February 24, 2026.');
+      showError('No IEEPA duty lines found in this file. Make sure you\'re running the ES-003 report and that entries fall within February 4, 2025 – February 24, 2026.');
       showScreen('screen-landing');
       return;
     }
@@ -1032,9 +1053,9 @@ function enrichEntry(e) {
   e.liqDateObj = liqDate;
   e.liqEstimated = liqEstimated;
 
-  const isLiquidated = e.liqStatus &&
-    (e.liqStatus.toLowerCase().includes('liquidated') || e.liqStatus.toLowerCase().includes('liq')) &&
-    !e.liqStatus.toLowerCase().includes('unliq');
+  const normalized = (e.liqStatus || '').toLowerCase().trim();
+  const isLiquidated = normalized === 'liquidated' || normalized === 'liq';
+  // 'Pending Liquidation', 'Unliquidated', 'Not Liquidated', '' → all treated as unliquidated
 
   const isUnliquidated = !isLiquidated;
 
@@ -1222,8 +1243,12 @@ function submitBook() {
   document.getElementById('confirmTitle').textContent = "You're on the calendar.";
   document.getElementById('confirmSub').textContent = "We'll review your refund exposure and pass-through liability before the call. Check your email for the calendar invite.";
   showScreen('screen-confirm');
-  // In production: open Calendly link
-  // window.open('https://calendly.com/jordan-creditpulse/tariff-assessment', '_blank');
+  if (CALENDLY_URL) {
+    const url = new URL(CALENDLY_URL);
+    url.searchParams.set('name', [data.firstName, data.lastName].filter(Boolean).join(' '));
+    url.searchParams.set('email', data.email);
+    window.open(url.toString(), '_blank');
+  }
 }
 
 function submitEmail() {
@@ -1244,6 +1269,9 @@ function collectForm() {
     return null;
   }
   const total = allEntries.reduce((s,e) => s + e.duty, 0);
+  const totalInterest = allEntries.reduce((s,e) => s + (e.interest || 0), 0);
+  const urgentEntries = allEntries.filter(e => e.status === 'urgent');
+  const mostUrgent = urgentEntries.slice().sort((a,b) => a.protestDeadline - b.protestDeadline)[0];
   const tiers = ['Under $50k', '$50k–$250k', '$250k–$1M', 'Over $1M'];
   return {
     firstName: fname,
@@ -1251,17 +1279,29 @@ function collectForm() {
     company: document.getElementById('company').value.trim(),
     email,
     phone: document.getElementById('phone').value.trim(),
-    refundEstimate: total,
-    entriesCount: allEntries.length,
+    refundEstimate: parseFloat(total.toFixed(2)),
+    interestEstimate: parseFloat(totalInterest.toFixed(2)),
+    affectedEntries: allEntries.length,
+    urgentDeadlines: urgentEntries.length,
+    mostUrgentDeadline: mostUrgent && mostUrgent.protestDeadline
+      ? mostUrgent.protestDeadline.toISOString().slice(0, 10)
+      : null,
     passThroughAnswer: q1Answer,
-    surchargeRange: q2Answer >= 0 ? tiers[q2Answer] : '',
-    urgentDeadlines: allEntries.filter(e => e.status === 'urgent').length,
+    surchargeTier: q2Answer >= 0 ? tiers[q2Answer] : '',
+    submittedAt: new Date().toISOString(),
   };
 }
 
 function sendLead(data) {
-  // In production: POST to n8n webhook → HubSpot + Slack
-  console.log('Lead captured:', data);
+  if (WEBHOOK_URL) {
+    fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).catch(err => console.error('Webhook error:', err));
+  } else {
+    console.log('Lead captured (webhook not configured):', data);
+  }
 }
 
 // ---- EXPORT ----
@@ -1285,7 +1325,7 @@ function exportCSV() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'ieepa-refund-analysis.csv';
+  a.download = `ieepa-refund-analysis-${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
 }
 
