@@ -644,6 +644,30 @@
     padding-top: 20px;
   }
 
+  /* ACE HELP */
+  .ace-help { margin-top: 16px; }
+  .ace-help-toggle {
+    background: none; border: none; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+    color: var(--accent); text-decoration: underline; padding: 0;
+  }
+  .ace-help-body {
+    margin-top: 12px; padding: 16px 20px;
+    background: var(--paper-warm); border-radius: var(--radius);
+    border: 0.5px solid var(--border);
+  }
+  .ace-steps { padding-left: 18px; font-size: 13px; color: var(--ink-muted); line-height: 2; }
+  .ace-steps strong { color: var(--ink); }
+  .ace-steps a { color: var(--accent); }
+  .ace-help-note { font-size: 12px; color: var(--ink-faint); margin-top: 10px; }
+
+  /* DATE WARNING BANNER */
+  .warn-banner {
+    padding: 12px 16px; background: var(--amber-light);
+    border: 0.5px solid rgba(138,92,0,0.2); border-radius: var(--radius);
+    font-size: 13px; color: var(--amber); margin-bottom: 16px;
+  }
+
   @media (max-width: 640px) {
     nav { padding: 16px 20px; }
     #screen-landing, #screen-results, #screen-processing, #screen-confirm {
@@ -678,6 +702,22 @@
   </div>
 
   <div class="upload-error" id="uploadError"></div>
+
+  <div class="ace-help">
+    <button class="ace-help-toggle" onclick="toggleAceHelp()">How to export your ACE ES-003 report ↓</button>
+    <div class="ace-help-body" id="aceHelpBody" style="display:none">
+      <ol class="ace-steps">
+        <li>Log in to the ACE portal at <a href="https://ace.cbp.dhs.gov" target="_blank">ace.cbp.dhs.gov</a></li>
+        <li>Click <strong>Reports</strong> in the top navigation bar</li>
+        <li>Select <strong>Standard Reports</strong> → <strong>Entry Summary</strong></li>
+        <li>Open <strong>ES-003 Entry Summary Line Tariff Details</strong></li>
+        <li>Set Import Date range: <strong>Feb 4, 2025 – Feb 24, 2026</strong></li>
+        <li>Click <strong>Run Report</strong>, then <strong>Export → CSV</strong> or <strong>Excel (.xlsx)</strong></li>
+        <li>Upload the file above</li>
+      </ol>
+      <p class="ace-help-note">Don't have ACE access? Your licensed customs broker can pull this report for you.</p>
+    </div>
+  </div>
 
   <div class="trust-row">
     <div class="trust-item"><div class="trust-dot"></div>Your data never leaves your browser</div>
@@ -762,6 +802,11 @@
       <span id="tableCount">—</span>
       <span style="color: var(--ink-faint); font-size: 11px;">Deadlines estimated where liquidation date not present in file</span>
     </div>
+  </div>
+
+  <!-- DATE WARNING BANNER -->
+  <div class="warn-banner" id="dateWarnBanner" style="display:none">
+    ⚠ <span id="dateWarnText"></span>
   </div>
 
   <!-- QUALIFICATION CARD -->
@@ -991,8 +1036,16 @@ function parseACEData(rows) {
         // Strategy A: use dedicated IEEPA Duty Amount column
         ieepaDuty = parseFloat(String(row[ieepaDutyCol] || '0').replace(/[$,]/g, '')) || 0;
         if (ieepaDuty === 0) continue;
-        const co = String(row[countryCol] || '').trim().toUpperCase();
-        tariffType = ['CN', 'CHINA', 'CA', 'CANADA', 'MX', 'MEXICO'].includes(co) ? 'Fentanyl' : 'Reciprocal';
+        // Belt-and-suspenders: if HTS column present, require 9903.01.xx or 9903.02.xx
+        if (htsCol) {
+          const hts = String(row[htsCol] || '');
+          const htsNorm = hts.replace(/\./g, '').replace(/\s/g, '');
+          if (!htsNorm.startsWith('990301') && !htsNorm.startsWith('990302')) continue;
+          tariffType = getTariffType(hts);
+        } else {
+          const co = String(row[countryCol] || '').trim().toUpperCase();
+          tariffType = ['CN', 'CHINA', 'CA', 'CANADA', 'MX', 'MEXICO'].includes(co) ? 'Fentanyl' : 'Reciprocal';
+        }
       } else {
         // Strategy B: filter by 9903.xx HTS prefix
         const hts = String(row[htsCol] || '');
@@ -1017,7 +1070,13 @@ function parseACEData(rows) {
     }
 
     if (Object.keys(entryMap).length === 0) {
-      showError('No IEEPA duty lines found in this file. Make sure you\'re running the ES-003 report and that entries fall within February 4, 2025 – February 24, 2026.');
+      const detectedCols = Object.keys(rows[0]).slice(0, 6).join(', ');
+      showError(
+        `No IEEPA duty lines found (9903.01.xx / 9903.02.xx). ` +
+        `Columns detected in your file: ${detectedCols}… ` +
+        `Make sure you're exporting the ES-003 "Entry Summary Line Tariff Details" report, ` +
+        `not the entry-level summary. Import dates must fall within Feb 4, 2025 – Feb 24, 2026.`
+      );
       showScreen('screen-landing');
       return;
     }
@@ -1124,6 +1183,22 @@ function renderResults() {
   }
 
   renderTable();
+
+  // Date range warning
+  const IEEPA_START = new Date('2025-02-04');
+  const IEEPA_END   = new Date('2026-02-24');
+  const outOfWindow = allEntries.filter(e => {
+    const d = new Date(e.date);
+    return !isNaN(d) && (d < IEEPA_START || d > IEEPA_END);
+  });
+  const warnBanner = document.getElementById('dateWarnBanner');
+  if (outOfWindow.length > 0) {
+    document.getElementById('dateWarnText').textContent =
+      `${outOfWindow.length} entr${outOfWindow.length === 1 ? 'y has an' : 'ies have'} import date${outOfWindow.length === 1 ? '' : 's'} outside the IEEPA window (Feb 4, 2025 – Feb 24, 2026) and may not qualify for refund. Review these entries before filing.`;
+    warnBanner.style.display = 'block';
+  } else {
+    warnBanner.style.display = 'none';
+  }
 
   // Trigger qualification card after delay
   setTimeout(() => {
@@ -1358,6 +1433,16 @@ function showScreen(id) {
 
 function showProcessing() {
   showScreen('screen-processing');
+}
+
+function toggleAceHelp() {
+  const body = document.getElementById('aceHelpBody');
+  const btn = document.querySelector('.ace-help-toggle');
+  const open = body.style.display === 'block';
+  body.style.display = open ? 'none' : 'block';
+  btn.textContent = open
+    ? 'How to export your ACE ES-003 report ↓'
+    : 'How to export your ACE ES-003 report ↑';
 }
 
 function shareToolCopy() {
