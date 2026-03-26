@@ -661,6 +661,28 @@
   .ace-steps a { color: var(--accent); }
   .ace-help-note { font-size: 12px; color: var(--ink-faint); margin-top: 10px; }
 
+  /* COST CASCADE CHART */
+  .cost-chart-section {
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px 28px 16px;
+    margin-bottom: 16px;
+  }
+  .cost-chart-title { font-size: 13px; font-weight: 500; color: var(--ink); margin-bottom: 2px; }
+  .cost-chart-sub   { font-size: 11px; color: var(--ink-faint); margin-bottom: 16px; }
+
+  /* BUILT BY FOOTER */
+  .built-by {
+    max-width: 900px; margin: 0 auto; padding: 12px 40px 32px;
+    font-size: 12px; color: var(--ink-faint);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .built-by a { color: var(--ink-muted); text-decoration: none; }
+  .built-by a:hover { color: var(--accent); }
+  .cp-logo { height: 20px; display: inline-block; vertical-align: middle; opacity: 0.75; }
+  .built-by-sep { color: var(--border-strong); }
+
   /* DATE WARNING BANNER */
   .warn-banner {
     padding: 12px 16px; background: var(--amber-light);
@@ -757,15 +779,22 @@
       <div class="metric-sub">with IEEPA duty lines</div>
     </div>
     <div class="metric-card">
-      <div class="metric-label">Protest deadlines</div>
+      <div class="metric-label">PSC eligible</div>
       <div class="metric-value" id="metricDeadlines">—</div>
-      <div class="metric-sub">active windows open</div>
+      <div class="metric-sub">file before liquidation</div>
     </div>
     <div class="metric-card">
-      <div class="metric-label">Most urgent</div>
+      <div class="metric-label">Protest window</div>
       <div class="metric-value" id="metricUrgent">—</div>
-      <div class="metric-sub" id="metricUrgentSub">protest deadline</div>
+      <div class="metric-sub" id="metricUrgentSub">days to nearest deadline</div>
     </div>
+  </div>
+
+  <!-- COST CASCADE CHART -->
+  <div class="cost-chart-section" id="costChartSection" style="display:none">
+    <div class="cost-chart-title">Cost cascade &amp; recovery</div>
+    <div class="cost-chart-sub">Aggregate across all entries</div>
+    <div id="costChart"></div>
   </div>
 
   <!-- TABLE -->
@@ -773,11 +802,12 @@
     <div class="table-header">
       <div class="table-title">Entry detail</div>
       <div class="filter-row">
-        <button class="filter-btn active" onclick="filterTable('all', this)">All</button>
-        <button class="filter-btn urgent" onclick="filterTable('urgent', this)">Urgent</button>
-        <button class="filter-btn watch" onclick="filterTable('watch', this)">Watch</button>
-        <button class="filter-btn safe" onclick="filterTable('safe', this)">Safe</button>
-        <button class="filter-btn" onclick="filterTable('open', this)">Unliquidated</button>
+        <button class="filter-btn active"  onclick="filterTable('all', this)">All</button>
+        <button class="filter-btn safe"    onclick="filterTable('psc', this)">File PSC</button>
+        <button class="filter-btn urgent"  onclick="filterTable('urgent', this)">Protest — Urgent</button>
+        <button class="filter-btn watch"   onclick="filterTable('watch', this)">Protest — Watch</button>
+        <button class="filter-btn safe"    onclick="filterTable('safe', this)">Protest — Safe</button>
+        <button class="filter-btn"         onclick="filterTable('expired', this)">CIT Risk</button>
       </div>
     </div>
     <div style="overflow-x: auto;">
@@ -878,6 +908,34 @@
   Results are estimates only and do not constitute legal or customs advice. IEEPA refund eligibility depends on liquidation status, protest deadlines, and ongoing CBP guidance. IEEPA tariff codes covered: 9903.01.10–9903.01.45 (fentanyl tariffs) and 9903.02.01–9903.02.10 (reciprocal tariffs). Protest deadline calculated as liquidation date + 180 days. Where liquidation date is absent, estimated as entry date + 314 days. Interest estimated at 5% per annum from entry date. Contact a licensed customs broker for official claim filing.
 </div>
 
+<div class="built-by">
+  Built by&nbsp;
+  <a href="https://creditpulse.com" target="_blank" rel="noopener">
+    <svg class="cp-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 792 612" aria-label="CreditPulse">
+      <g>
+        <path fill="#e8f3df" d="M106.81,259.02c-28.97,0-52.45,23.48-52.45,52.45s23.48,52.47,52.45,52.47,52.47-23.49,52.47-52.47-23.49-52.45-52.47-52.45ZM106.81,350.28c-21.42,0-38.79-17.37-38.79-38.81s17.37-38.79,38.79-38.79,38.79,17.37,38.79,38.79-17.36,38.81-38.79,38.81Z"/>
+        <path fill="#afd4ab" d="M106.81,272.68c-21.42,0-38.79,17.37-38.79,38.79s17.37,38.81,38.79,38.81,38.79-17.37,38.79-38.81-17.36-38.79-38.79-38.79ZM106.81,333.74c-12.29,0-22.26-9.97-22.26-22.28s9.97-22.26,22.26-22.26,22.28,9.97,22.28,22.26-9.97,22.28-22.28,22.28Z"/>
+        <path fill="#4c675e" d="M129.08,311.47c0,12.3-9.97,22.28-22.28,22.28s-22.26-9.97-22.26-22.28,9.97-22.26,22.26-22.26,22.28,9.97,22.28,22.26Z"/>
+      </g>
+      <g>
+        <path fill="#1e1e1e" d="M213.94,339.56c-4.5,0-8.59-.98-12.27-2.93-3.68-1.95-6.59-4.8-8.74-8.54-2.15-3.74-3.23-8.33-3.23-13.76s1.18-9.95,3.53-13.76c2.35-3.81,5.5-6.72,9.44-8.74,3.94-2.02,8.26-3.03,12.96-3.03,3.84,0,7.09.63,9.73,1.89,2.65,1.26,4.67,2.9,6.06,4.92,1.39,2.02,2.09,4.12,2.09,6.31,0,1.85-.56,3.3-1.69,4.32-1.13,1.03-2.58,1.54-4.37,1.54-1.92,0-3.48-.7-4.67-2.09-1.19-1.39-1.89-3.21-2.09-5.46-.07-1.46-.03-2.7.1-3.72.13-1.03.13-2.07,0-3.13-.27-1.13-.68-1.87-1.24-2.23-.56-.36-1.34-.55-2.33-.55-4.04,0-7.17,1.76-9.39,5.26-2.22,3.51-3.33,9.11-3.33,16.79,0,6.69,1.24,11.81,3.72,15.35,2.48,3.54,6.31,5.31,11.47,5.31,3.11,0,5.63-.56,7.55-1.69,1.92-1.13,3.77-2.81,5.56-5.07l.99.79c-1.66,3.91-4.21,6.92-7.65,9.04-3.44,2.12-7.52,3.18-12.22,3.18Z"/>
+        <path fill="#1e1e1e" d="M238.37,338.07v-.99l1.49-.4c1.32-.4,2.23-.99,2.73-1.79.5-.79.74-1.82.74-3.08v-31.09c0-1.46-.25-2.53-.74-3.23-.5-.7-1.41-1.17-2.73-1.44l-1.49-.4v-.99l17.09-5.76.99.99.89,8.54v.79c.93-1.85,2.14-3.56,3.63-5.12,1.49-1.55,3.14-2.83,4.97-3.82,1.82-.99,3.63-1.49,5.41-1.49,2.52,0,4.44.7,5.76,2.09,1.32,1.39,1.99,3.15,1.99,5.26,0,2.25-.64,3.99-1.94,5.22-1.29,1.23-2.83,1.84-4.62,1.84-2.78,0-5.23-1.39-7.35-4.17l-.2-.2c-.66-.93-1.42-1.44-2.28-1.54-.86-.1-1.66.31-2.38,1.24-.66.6-1.21,1.31-1.64,2.13-.43.83-.84,1.77-1.24,2.83v27.71c0,2.65,1.16,4.3,3.48,4.97l3.18.89v.99h-25.73Z"/>
+        <path fill="#1e1e1e" d="M305.52,288.8c4.3,0,7.98.88,11.03,2.63,3.04,1.76,5.38,4.14,7,7.15,1.62,3.01,2.43,6.44,2.43,10.28,0,.73-.03,1.47-.1,2.23-.07.76-.2,1.44-.4,2.04h-29.6c.07,7.15,1.34,12.3,3.82,15.45,2.48,3.15,6.17,4.72,11.07,4.72,3.31,0,5.99-.53,8.05-1.59,2.05-1.06,3.97-2.62,5.76-4.67l.99.89c-2.05,3.64-4.79,6.49-8.19,8.54-3.41,2.05-7.5,3.08-12.27,3.08s-8.88-1.01-12.52-3.03c-3.64-2.02-6.49-4.92-8.54-8.69-2.05-3.78-3.08-8.28-3.08-13.51s1.19-10.05,3.58-13.86c2.38-3.81,5.45-6.71,9.19-8.69,3.74-1.99,7.66-2.98,11.77-2.98ZM305.22,290.78c-1.92,0-3.56.58-4.92,1.74-1.36,1.16-2.42,3.21-3.18,6.16-.76,2.95-1.18,7.1-1.24,12.47h16.99c.66-7.22.4-12.42-.8-15.6s-3.48-4.77-6.85-4.77Z"/>
+        <path fill="#1e1e1e" d="M352.01,339.56c-3.91,0-7.42-.88-10.53-2.63s-5.58-4.47-7.4-8.14c-1.82-3.68-2.73-8.39-2.73-14.15s1.03-10.64,3.08-14.45c2.05-3.81,4.77-6.66,8.14-8.54,3.38-1.89,7.05-2.83,11.03-2.83,2.32,0,4.54.23,6.66.7,2.12.46,4.01,1.16,5.66,2.09v-12.91c0-1.39-.21-2.42-.65-3.08-.43-.66-1.34-1.13-2.73-1.39l-1.89-.4v-.99l18.08-4.37,1.09.89-.4,13.91v48.57c0,1.33.23,2.4.7,3.23.46.83,1.32,1.41,2.58,1.74l.89.3v.99l-16.99,1.09-.89-3.58c-1.79,1.19-3.82,2.15-6.11,2.88-2.28.73-4.82,1.09-7.6,1.09ZM357.77,335.88c2.78,0,5.33-.83,7.65-2.48v-39.43c-2.45-1.59-4.97-2.38-7.55-2.38-3.18,0-5.89,1.84-8.14,5.51-2.25,3.68-3.38,9.45-3.38,17.33s1.06,13.43,3.18,16.64c2.12,3.21,4.87,4.82,8.25,4.82Z"/>
+        <path fill="#1e1e1e" d="M388.16,338.07v-.99l1.39-.4c1.32-.4,2.23-.99,2.73-1.79.5-.79.74-1.85.74-3.18v-31.09c0-1.39-.25-2.43-.74-3.13s-1.41-1.17-2.73-1.44l-1.39-.3v-.99l18.18-5.86.99.99-.3,14.11v27.81c0,1.33.25,2.38.75,3.18s1.37,1.39,2.63,1.79l.99.3v.99h-23.24ZM399.89,283.63c-2.25,0-4.16-.71-5.71-2.14-1.56-1.42-2.33-3.23-2.33-5.41s.78-4.07,2.33-5.46c1.55-1.39,3.46-2.09,5.71-2.09s4.14.7,5.66,2.09c1.52,1.39,2.29,3.21,2.29,5.46s-.76,3.99-2.29,5.41c-1.52,1.43-3.41,2.14-5.66,2.14Z"/>
+        <path fill="#1e1e1e" d="M434.65,339.56c-4.24,0-7.53-1.06-9.88-3.18-2.35-2.12-3.53-5.5-3.53-10.13v-33.97h-6.85v-.99l2.38-.4c2.05-.46,3.82-1.13,5.31-1.99,1.49-.86,2.96-2.02,4.42-3.48l8.14-9.04h.99l-.3,13.91h11.13v1.99h-11.22v35.76c0,2.32.51,4.07,1.54,5.27,1.03,1.19,2.33,1.79,3.92,1.79,1.39,0,2.61-.35,3.68-1.04,1.06-.7,2.12-1.64,3.18-2.83l.99.99c-1.32,2.25-3.14,4.04-5.46,5.36-2.32,1.32-5.13,1.99-8.44,1.99Z"/>
+        <path fill="#1e1e1e" d="M473.29,360.91v-.99l1.19-.4c2.45-.66,3.68-2.25,3.68-4.77v-54.04c0-1.46-.25-2.55-.75-3.28-.5-.73-1.41-1.22-2.73-1.49l-1.39-.3v-.99l16.89-5.76.99.99.89,3.08c2.18-1.32,4.62-2.35,7.3-3.08,2.68-.73,5.45-1.09,8.29-1.09,5.7,0,10.21,2.17,13.56,6.51,3.34,4.34,5.02,10.55,5.02,18.63s-1.84,14.2-5.51,18.77c-3.68,4.57-8.86,6.85-15.55,6.85-5.23,0-9.64-.76-13.21-2.29v17.18c0,2.65,1.19,4.3,3.57,4.97l1.89.5v.99h-24.14ZM500.41,336.68c3.31,0,5.94-1.72,7.9-5.16,1.95-3.44,2.93-9.17,2.93-17.18s-.93-13.62-2.78-16.84c-1.85-3.21-4.54-4.82-8.05-4.82-2.45,0-5.16.79-8.14,2.38v40.03c2.52,1.06,5.23,1.59,8.14,1.59Z"/>
+        <path fill="#1e1e1e" d="M548.28,339.56c-2.58,0-4.95-.5-7.1-1.49s-3.84-2.6-5.07-4.82c-1.23-2.22-1.8-5.15-1.74-8.79l.3-25.53c0-1.52-.27-2.62-.79-3.28-.53-.66-1.36-1.13-2.48-1.39l-1.19-.4v-.99l17.78-3.48.99.99-.5,14.11v23.94c0,2.12.61,3.68,1.84,4.67s2.77,1.49,4.62,1.49,3.51-.26,4.97-.79c1.46-.53,2.91-1.32,4.37-2.38l.4-32.38c0-1.52-.23-2.6-.7-3.23-.46-.63-1.33-1.08-2.58-1.34l-.99-.3v-.99l17.38-3.77.99.99-.3,14.11v26.92c0,1.46.2,2.58.6,3.38.4.79,1.26,1.46,2.58,1.99l.99.3v.99l-17.38.99-.89-5.86c-2.19,1.79-4.55,3.3-7.1,4.52-2.55,1.22-5.55,1.84-8.99,1.84Z"/>
+        <path fill="#1e1e1e" d="M586.92,338.07v-.99l1.19-.4c2.38-.79,3.57-2.45,3.57-4.97v-53.14c0-1.32-.27-2.33-.79-3.03-.53-.7-1.46-1.21-2.78-1.54l-1.29-.3v-.99l18.18-4.27,1.19.89-.4,13.91v33.97c0,2.45.02,4.88.05,7.3.03,2.42.05,4.82.05,7.2,0,1.33.26,2.4.79,3.23.53.83,1.42,1.44,2.68,1.84l1.29.3v.99h-23.74Z"/>
+        <path fill="#1e1e1e" d="M632.22,339.56c-3.25,0-6.16-.38-8.74-1.14s-4.97-1.7-7.15-2.83l.1-11.82h.99l3.38,5.96c1.46,2.65,3.06,4.62,4.82,5.91,1.75,1.29,3.99,1.94,6.7,1.94,3.18,0,5.74-.71,7.7-2.14,1.95-1.42,2.93-3.33,2.93-5.71,0-2.19-.7-3.97-2.09-5.36-1.39-1.39-3.97-2.65-7.75-3.77l-4.17-1.29c-4.04-1.19-7.22-3.05-9.54-5.56-2.32-2.52-3.48-5.6-3.48-9.24,0-4.37,1.72-8.08,5.16-11.13,3.44-3.05,8.38-4.57,14.8-4.57,2.58,0,5.02.28,7.3.84,2.29.56,4.49,1.41,6.61,2.53l-.6,10.73h-.99l-3.48-6.16c-1.26-2.19-2.5-3.72-3.72-4.62-1.23-.89-3.06-1.34-5.51-1.34-2.25,0-4.37.63-6.36,1.89-1.99,1.26-2.98,3.05-2.98,5.36s.84,4.04,2.53,5.36c1.69,1.33,4.19,2.55,7.5,3.68l4.47,1.29c4.77,1.46,8.18,3.46,10.23,6.01,2.05,2.55,3.08,5.61,3.08,9.19,0,4.83-1.9,8.71-5.71,11.62-3.81,2.91-9.16,4.37-16.04,4.37Z"/>
+        <path fill="#1e1e1e" d="M683.28,288.8c4.3,0,7.98.88,11.03,2.63,3.04,1.76,5.38,4.14,7,7.15,1.62,3.01,2.43,6.44,2.43,10.28,0,.73-.03,1.47-.1,2.23-.07.76-.2,1.44-.4,2.04h-29.6c.07,7.15,1.34,12.3,3.82,15.45,2.48,3.15,6.17,4.72,11.07,4.72,3.31,0,5.99-.53,8.05-1.59,2.05-1.06,3.97-2.62,5.76-4.67l.99.89c-2.05,3.64-4.79,6.49-8.19,8.54-3.41,2.05-7.5,3.08-12.27,3.08s-8.88-1.01-12.52-3.03c-3.64-2.02-6.49-4.92-8.54-8.69-2.05-3.78-3.08-8.28-3.08-13.51s1.19-10.05,3.58-13.86c2.38-3.81,5.45-6.71,9.19-8.69,3.74-1.99,7.66-2.98,11.77-2.98ZM682.98,290.78c-1.92,0-3.56.58-4.92,1.74-1.36,1.16-2.42,3.21-3.18,6.16-.76,2.95-1.18,7.1-1.24,12.47h16.99c.66-7.22.4-12.42-.8-15.6-1.19-3.18-3.48-4.77-6.85-4.77Z"/>
+      </g>
+    </svg>
+  </a>
+  <span class="built-by-sep">·</span>
+  <a href="https://calendar.app.google/dEPUjzLs3PC5fX5N9" target="_blank" rel="noopener">Book a free assessment →</a>
+</div>
+
 <script>
 // ---- STATE ----
 let allEntries = [];
@@ -893,7 +951,7 @@ let q2Answer = -1;
 const WEBHOOK_URL = null; // 'https://your-n8n-instance/webhook/tariffback-lead'
 
 // TODO: Replace with your Calendly booking link before launch
-const CALENDLY_URL = null; // 'https://calendly.com/jordan-creditpulse/tariff-assessment'
+const CALENDLY_URL = 'https://calendar.app.google/dEPUjzLs3PC5fX5N9';
 
 // ---- IEEPA HTS CODES ----
 const IEEPA_PREFIXES = [
@@ -923,16 +981,17 @@ function getTariffType(hts) {
 function loadSampleData() {
   const today = new Date();
   const sample = [
-    { entry: '3311-2025-001', date: '2025-02-15', country: 'China', hts: '9903.01.25', duty: 42800, liqDate: '2025-12-26', liqStatus: 'Liquidated' },
-    { entry: '3311-2025-002', date: '2025-03-10', country: 'Canada', hts: '9903.01.26', duty: 18500, liqDate: '2026-01-18', liqStatus: 'Liquidated' },
-    { entry: '3311-2025-003', date: '2025-04-05', country: 'Germany', hts: '9903.02.04', duty: 31200, liqDate: '2026-02-13', liqStatus: 'Liquidated' },
-    { entry: '3311-2025-004', date: '2025-05-20', country: 'Vietnam', hts: '9903.02.05', duty: 9400, liqDate: null, liqStatus: 'Unliquidated' },
-    { entry: '3311-2025-005', date: '2025-06-12', country: 'Mexico', hts: '9903.01.27', duty: 22100, liqDate: null, liqStatus: 'Unliquidated' },
-    { entry: '3311-2025-006', date: '2025-07-08', country: 'China', hts: '9903.01.25', duty: 58700, liqDate: null, liqStatus: 'Unliquidated' },
-    { entry: '3311-2025-007', date: '2025-08-22', country: 'India', hts: '9903.02.07', duty: 14300, liqDate: null, liqStatus: 'Unliquidated' },
-    { entry: '3311-2025-008', date: '2025-09-14', country: 'Brazil', hts: '9903.02.03', duty: 6800, liqDate: null, liqStatus: 'Unliquidated' },
-    { entry: '3311-2025-009', date: '2025-10-30', country: 'China', hts: '9903.01.25', duty: 77200, liqDate: null, liqStatus: 'Unliquidated' },
-    { entry: '3311-2025-010', date: '2025-11-18', country: 'Taiwan', hts: '9903.02.08', duty: 33600, liqDate: null, liqStatus: 'Unliquidated' },
+    { entry: '3311-2025-001', date: '2025-02-15', country: 'China',   hts: '9903.01.25', duty: 42800,  enteredValue: 295000, sec301Duty: 73750,  liqDate: '2025-12-26', liqStatus: 'Liquidated' },
+    { entry: '3311-2025-002', date: '2025-03-10', country: 'Canada',  hts: '9903.01.26', duty: 18500,  enteredValue: 128000, sec301Duty: 0,       liqDate: '2026-01-18', liqStatus: 'Liquidated' },
+    { entry: '3311-2025-003', date: '2025-04-05', country: 'Germany', hts: '9903.02.04', duty: 31200,  enteredValue: 215000, sec301Duty: 0,       liqDate: '2026-02-13', liqStatus: 'Liquidated' },
+    { entry: '3311-2025-004', date: '2025-05-20', country: 'Vietnam', hts: '9903.02.05', duty: 9400,   enteredValue: 65000,  sec301Duty: 0,       liqDate: null,         liqStatus: 'Unliquidated' },
+    { entry: '3311-2025-005', date: '2025-06-12', country: 'Mexico',  hts: '9903.01.27', duty: 22100,  enteredValue: 152000, sec301Duty: 0,       liqDate: null,         liqStatus: 'Unliquidated' },
+    { entry: '3311-2025-006', date: '2025-07-08', country: 'China',   hts: '9903.01.25', duty: 58700,  enteredValue: 405000, sec301Duty: 101250,  liqDate: null,         liqStatus: 'Unliquidated' },
+    { entry: '3311-2025-007', date: '2025-08-22', country: 'India',   hts: '9903.02.07', duty: 14300,  enteredValue: 99000,  sec301Duty: 0,       liqDate: null,         liqStatus: 'Unliquidated' },
+    { entry: '3311-2025-008', date: '2025-09-14', country: 'Brazil',  hts: '9903.02.03', duty: 6800,   enteredValue: 47000,  sec301Duty: 0,       liqDate: null,         liqStatus: 'Unliquidated' },
+    { entry: '3311-2025-009', date: '2025-10-30', country: 'China',   hts: '9903.01.25', duty: 77200,  enteredValue: 533000, sec301Duty: 133250,  liqDate: null,         liqStatus: 'Unliquidated' },
+    { entry: '3311-2025-010', date: '2025-11-18', country: 'Taiwan',  hts: '9903.02.08', duty: 33600,  enteredValue: 232000, sec301Duty: 58000,   liqDate: null,         liqStatus: 'Unliquidated' },
+    { entry: '3311-2025-011', date: '2025-05-06', country: 'China',   hts: '9903.01.25', duty: 29400,  enteredValue: 203000, sec301Duty: 50750,   liqDate: null,         liqStatus: 'Unliquidated' },
   ];
   processEntries(sample);
 }
@@ -998,6 +1057,9 @@ function parseACEData(rows) {
   const liqStatusCol = findCol('liquidation status', 'liq status');
   const liqDateCol   = findCol('liquidation date', 'liq date');
 
+  const enteredValueCol = findCol('entered value', 'commercial value', 'invoice value');
+  const sec301Col       = findCol('section 301 duty amount', 'sec 301 duty', 's301');
+
   // Strategy A: dedicated IEEPA Duty Amount column (standard ACE ES-003 format)
   const ieepaDutyCol = findCol('ieepa duty');
   // Strategy B: HTS code filtering (some broker export formats)
@@ -1026,6 +1088,17 @@ function parseACEData(rows) {
 
   setTimeout(() => {
     clearInterval(iv);
+
+    // Pre-pass: accumulate entered value and sec 301 for all rows per entry
+    const entryValueMap = {};
+    if (enteredValueCol || sec301Col) {
+      for (const row of rows) {
+        const en = entryCol ? String(row[entryCol] || '').trim() : 'Unknown';
+        if (!entryValueMap[en]) entryValueMap[en] = { enteredValue: 0, sec301Duty: 0 };
+        if (enteredValueCol) entryValueMap[en].enteredValue += parseFloat(String(row[enteredValueCol]||'0').replace(/[$,]/g,''))||0;
+        if (sec301Col)       entryValueMap[en].sec301Duty   += parseFloat(String(row[sec301Col]||'0').replace(/[$,]/g,''))||0;
+      }
+    }
 
     const entryMap = {};
     for (const row of rows) {
@@ -1061,12 +1134,16 @@ function parseACEData(rows) {
       const liqDate   = liqDateCol   ? String(row[liqDateCol]   || '').trim() : '';
 
       if (!entryMap[entryNum]) {
-        entryMap[entryNum] = { entry: entryNum, date, country, duty: 0, liqStatus, liqDate, types: new Set() };
+        entryMap[entryNum] = { entry: entryNum, date, country, duty: 0, enteredValue: 0, sec301Duty: 0, liqStatus, liqDate, types: new Set() };
       }
       entryMap[entryNum].duty += ieepaDuty;
       entryMap[entryNum].types.add(tariffType);
       if (liqDate   && !entryMap[entryNum].liqDate)   entryMap[entryNum].liqDate   = liqDate;
       if (liqStatus && !entryMap[entryNum].liqStatus) entryMap[entryNum].liqStatus = liqStatus;
+      if (entryValueMap[entryNum]) {
+        entryMap[entryNum].enteredValue = entryValueMap[entryNum].enteredValue;
+        entryMap[entryNum].sec301Duty   = entryValueMap[entryNum].sec301Duty;
+      }
     }
 
     if (Object.keys(entryMap).length === 0) {
@@ -1116,27 +1193,29 @@ function enrichEntry(e) {
   const isLiquidated = normalized === 'liquidated' || normalized === 'liq';
   // 'Pending Liquidation', 'Unliquidated', 'Not Liquidated', '' → all treated as unliquidated
 
-  const isUnliquidated = !isLiquidated;
-
-  if (isUnliquidated || (liqEstimated && liqDate && liqDate > today)) {
-    e.status = 'open';
+  if (!isLiquidated) {
+    // PRE-LIQUIDATION: PSC path (cleanest option)
+    e.refundPath = 'psc';
     e.protestDeadline = null;
     if (liqDate) {
-      const deadline = new Date(liqDate);
-      deadline.setDate(deadline.getDate() + 180);
-      e.protestDeadline = deadline;
+      const daysToLiq = Math.round((liqDate - today) / 86400000);
+      e.status = (daysToLiq > 0 && daysToLiq <= 30) ? 'psc-urgent' : 'psc';
+    } else {
+      e.status = 'psc';
     }
   } else if (liqDate) {
+    // POST-LIQUIDATION: Protest path (19 USC 1514)
     const deadline = new Date(liqDate);
     deadline.setDate(deadline.getDate() + 180);
     e.protestDeadline = deadline;
     const daysLeft = Math.round((deadline - today) / 86400000);
-    if (daysLeft < 0) e.status = 'expired';
-    else if (daysLeft <= 90) e.status = 'urgent';
-    else if (daysLeft <= 180) e.status = 'watch';
-    else e.status = 'safe';
+    if (daysLeft < 0)         { e.refundPath = 'cit';     e.status = 'expired'; }
+    else if (daysLeft <= 90)  { e.refundPath = 'protest';  e.status = 'urgent';  }
+    else if (daysLeft <= 180) { e.refundPath = 'protest';  e.status = 'watch';   }
+    else                      { e.refundPath = 'protest';  e.status = 'safe';    }
   } else {
-    e.status = 'open';
+    e.refundPath = 'unknown';
+    e.status = 'unknown';
   }
 
   // Interest estimate: 5% annual from entry date to today
@@ -1163,23 +1242,25 @@ function renderResults() {
   // Metrics
   const total = allEntries.reduce((s,e) => s + e.duty, 0);
   const totalInterest = allEntries.reduce((s,e) => s + (e.interest || 0), 0);
+  const pscEntries    = allEntries.filter(e => e.status === 'psc' || e.status === 'psc-urgent');
   const urgentEntries = allEntries.filter(e => e.status === 'urgent');
-  const watchEntries = allEntries.filter(e => e.status === 'watch');
-  const activeDeadlines = [...urgentEntries, ...watchEntries].length;
+  const watchEntries  = allEntries.filter(e => e.status === 'watch');
 
   document.getElementById('metricRefund').textContent = formatMoney(total);
   document.getElementById('metricInterest').textContent = `+ ~${formatMoney(totalInterest)} interest`;
   document.getElementById('metricEntries').textContent = allEntries.length.toLocaleString();
-  document.getElementById('metricDeadlines').textContent = activeDeadlines;
+  document.getElementById('metricDeadlines').textContent = pscEntries.length;
 
-  const urgent = urgentEntries.sort((a,b) => a.protestDeadline - b.protestDeadline)[0];
-  if (urgent && urgent.protestDeadline) {
-    const days = Math.round((urgent.protestDeadline - new Date()) / 86400000);
+  const nearestProtest = [...urgentEntries, ...watchEntries]
+    .filter(e => e.protestDeadline)
+    .sort((a,b) => a.protestDeadline - b.protestDeadline)[0];
+  if (nearestProtest) {
+    const days = Math.round((nearestProtest.protestDeadline - new Date()) / 86400000);
     document.getElementById('metricUrgent').textContent = days + 'd';
-    document.getElementById('metricUrgentSub').textContent = formatDate(urgent.protestDeadline);
+    document.getElementById('metricUrgentSub').textContent = formatDate(nearestProtest.protestDeadline);
   } else {
     document.getElementById('metricUrgent').textContent = '—';
-    document.getElementById('metricUrgentSub').textContent = 'no urgent deadlines';
+    document.getElementById('metricUrgentSub').textContent = 'no open protest windows';
   }
 
   renderTable();
@@ -1200,12 +1281,61 @@ function renderResults() {
     warnBanner.style.display = 'none';
   }
 
+  renderCostChart();
+
   // Trigger qualification card after delay
   setTimeout(() => {
     const card = document.getElementById('qualCard');
     card.classList.add('visible');
     card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, 2500);
+}
+
+function renderCostChart() {
+  const totalEV     = allEntries.reduce((s,e) => s + (e.enteredValue || 0), 0);
+  const totalS301   = allEntries.reduce((s,e) => s + (e.sec301Duty   || 0), 0);
+  const totalIEEPA  = allEntries.reduce((s,e) => s + e.duty, 0);
+  const totalLanded = totalEV + totalS301 + totalIEEPA;
+
+  const section = document.getElementById('costChartSection');
+  if (totalEV === 0) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+
+  const H = 180, barW = 60, gap = 32;
+  const maxVal = totalLanded;
+  const toY = v => H - Math.round((v / maxVal) * H);
+  const toH = v => Math.max(2, Math.round((v / maxVal) * H));
+  const fmt = v => v >= 1000000 ? '$' + (v/1000000).toFixed(1) + 'M' : '$' + Math.round(v/1000).toLocaleString() + 'k';
+
+  const bars = [
+    { label: 'Declared Value', color: '#c8b89a', val: totalEV,     start: 0 },
+    { label: 'Sec 301',        color: '#d4910a', val: totalS301,   start: totalEV },
+    { label: 'IEEPA',          color: '#c8440a', val: totalIEEPA,  start: totalEV + totalS301 },
+    { label: 'Landed Cost',    color: '#3a3530', val: totalLanded, start: 0 },
+    { label: 'Recovery',       color: '#1a6b3a', val: totalIEEPA,  start: totalEV + totalS301 },
+  ];
+
+  const svgW = bars.length * (barW + gap) + 60;
+  let inner = '';
+  bars.forEach((b, i) => {
+    const x  = 30 + i * (barW + gap);
+    const bh = toH(b.val);
+    const by = toY(b.start + b.val);
+    inner += `<rect x="${x}" y="${by}" width="${barW}" height="${bh}" fill="${b.color}" rx="3"/>`;
+    inner += `<text x="${x+barW/2}" y="${H+16}" text-anchor="middle" font-size="10" fill="#5a5750" font-family="DM Sans,sans-serif">${b.label}</text>`;
+    inner += `<text x="${x+barW/2}" y="${H+28}" text-anchor="middle" font-size="9" fill="#a09c96" font-family="DM Mono,monospace">${fmt(b.val)}</text>`;
+    if (i < 2) {
+      const connY = toY(b.start + b.val);
+      inner += `<line x1="${x+barW}" y1="${connY}" x2="${x+barW+gap}" y2="${connY}" stroke="#e0dcd6" stroke-width="1" stroke-dasharray="3,2"/>`;
+    }
+  });
+
+  document.getElementById('costChart').innerHTML =
+    `<svg width="100%" viewBox="0 0 ${svgW} ${H+44}" xmlns="http://www.w3.org/2000/svg">
+      <line x1="28" y1="0" x2="28" y2="${H}" stroke="#e0dcd6" stroke-width="1"/>
+      <line x1="28" y1="${H}" x2="${svgW-8}" y2="${H}" stroke="#e0dcd6" stroke-width="1"/>
+      ${inner}
+    </svg>`;
 }
 
 function renderTable() {
@@ -1254,16 +1384,18 @@ function renderTable() {
 }
 
 function statusOrder(s) {
-  return { urgent: 0, watch: 1, safe: 2, open: 3, expired: 4 }[s] ?? 5;
+  return { 'psc-urgent': 0, urgent: 1, watch: 2, psc: 3, safe: 4, expired: 5, unknown: 6 }[s] ?? 7;
 }
 
 function badgeHTML(status) {
   const map = {
-    urgent: ['badge-urgent', 'Urgent'],
-    watch: ['badge-watch', 'Watch'],
-    safe: ['badge-safe', 'Safe'],
-    open: ['badge-open', 'Unliquidated'],
-    expired: ['badge-open', 'Expired'],
+    'psc':        ['badge-safe',   'File PSC'],
+    'psc-urgent': ['badge-watch',  'PSC – Act Soon'],
+    'urgent':     ['badge-urgent', 'Protest – Urgent'],
+    'watch':      ['badge-watch',  'Protest – Watch'],
+    'safe':       ['badge-safe',   'Protest – Safe'],
+    'expired':    ['badge-open',   'CIT Risk'],
+    'unknown':    ['badge-open',   'Unknown'],
   };
   const [cls, label] = map[status] || ['badge-open', status];
   return `<span class="badge ${cls}">${label}</span>`;
@@ -1274,6 +1406,7 @@ function filterTable(f, btn) {
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   if (f === 'all') filteredEntries = [...allEntries];
+  else if (f === 'psc') filteredEntries = allEntries.filter(e => e.status === 'psc' || e.status === 'psc-urgent');
   else filteredEntries = allEntries.filter(e => e.status === f);
   renderTable();
 }
@@ -1382,12 +1515,13 @@ function sendLead(data) {
 // ---- EXPORT ----
 function exportCSV() {
   const rows = [
-    ['Entry Number','Entry Date','Country','Tariff Type','IEEPA Duty ($)','Liquidation Date','Protest Deadline','Status','Estimated','Interest Est ($)']
+    ['Entry Number','Entry Date','Country','Tariff Type','IEEPA Duty ($)','Refund Path','Liquidation Date','Protest Deadline','Status','Deadline Estimated','Interest Est ($)']
   ];
   allEntries.forEach(e => {
     rows.push([
       e.entry, e.date, e.country, e.tariffType,
       e.duty.toFixed(2),
+      e.refundPath || '',
       e.liqDateObj ? formatDate(e.liqDateObj) : '',
       e.protestDeadline ? formatDate(e.protestDeadline) : '',
       e.status,
