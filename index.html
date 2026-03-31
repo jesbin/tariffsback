@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TariffBack — IEEPA Refund Calculator</title>
+<meta name="description" content="Upload your ACE ES-003 report and see your IEEPA tariff refund exposure — including protest deadlines — in under a minute. Free, no account required.">
+<meta property="og:title" content="TariffBack — IEEPA Refund Calculator">
+<meta property="og:description" content="Find out what CBP owes you. Free browser-based calculator for IEEPA tariff refunds.">
+<meta property="og:url" content="https://tariffback.ai">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="TariffBack — IEEPA Refund Calculator">
+<meta name="twitter:description" content="Find out what CBP owes you. Free IEEPA tariff refund calculator for finance teams.">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -690,6 +698,40 @@
     font-size: 13px; color: var(--amber); margin-bottom: 16px;
   }
 
+  /* COUNTRY CHART */
+  .country-chart-section {
+    background: var(--paper-card); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 20px 28px 16px; margin-bottom: 16px;
+  }
+  .country-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 12px; }
+  .country-bar-label { width: 100px; color: var(--ink-muted); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+  .country-bar-track { flex: 1; height: 10px; background: var(--paper-warm); border-radius: 3px; }
+  .country-bar-fill  { height: 10px; background: var(--accent); border-radius: 3px; transition: width 0.3s; }
+  .country-bar-amt   { width: 60px; font-family: 'DM Mono', monospace; color: var(--ink-muted); font-size: 11px; flex-shrink: 0; }
+
+  /* TABLE SEARCH */
+  .table-search {
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+    border: 1px solid var(--border-strong); border-radius: var(--radius);
+    padding: 6px 12px; background: var(--paper-card); color: var(--ink);
+    width: 220px; outline: none;
+  }
+  .table-search:focus { border-color: var(--accent); }
+  .table-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+
+  /* MODAL */
+  .modal-overlay { position:fixed; inset:0; background:rgba(15,14,12,0.45); z-index:200; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .modal-box { background:var(--paper-card); border-radius:var(--radius-lg); max-width:460px; width:100%; padding:28px; max-height:80vh; overflow-y:auto; }
+  .modal-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; }
+  .modal-title { font-family:'Instrument Serif',serif; font-size:20px; }
+  .modal-close { background:none; border:none; font-size:18px; cursor:pointer; color:var(--ink-muted); padding:0 4px; line-height:1; }
+  .modal-close:hover { color:var(--ink); }
+  .modal-row { display:flex; justify-content:space-between; align-items:baseline; padding:9px 0; border-bottom:1px solid var(--border); font-size:13px; gap:16px; }
+  .modal-row:last-child { border-bottom:none; }
+  .modal-label { color:var(--ink-muted); flex-shrink:0; }
+  .modal-value { font-weight:500; text-align:right; }
+  .modal-path-note { margin-top:16px; padding:12px 14px; background:var(--paper-warm); border-radius:var(--radius); font-size:12px; color:var(--ink-muted); line-height:1.5; }
+
   @media (max-width: 640px) {
     nav { padding: 16px 20px; }
     #screen-landing, #screen-results, #screen-processing, #screen-confirm {
@@ -763,7 +805,10 @@
       <div class="results-title">Your IEEPA Refund Summary</div>
       <div class="results-sub" id="resultsSub">Based on your ACE ES-003 export</div>
     </div>
-    <button class="btn-outline" onclick="exportCSV()">↓ Export CSV</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn-outline" onclick="exportCSV()">↓ Export CSV</button>
+      <button class="btn-outline" onclick="resetToUpload()">↺ New file</button>
+    </div>
   </div>
 
   <!-- METRICS -->
@@ -790,6 +835,12 @@
     </div>
   </div>
 
+  <!-- COUNTRY CHART -->
+  <div class="country-chart-section" id="countryChartSection" style="display:none">
+    <div class="cost-chart-title">Exposure by country</div>
+    <div id="countryChart" style="margin-top:12px"></div>
+  </div>
+
   <!-- COST CASCADE CHART -->
   <div class="cost-chart-section" id="costChartSection" style="display:none">
     <div class="cost-chart-title">Cost cascade &amp; recovery</div>
@@ -800,9 +851,13 @@
   <!-- TABLE -->
   <div class="table-section">
     <div class="table-header">
-      <div class="table-title">Entry detail</div>
+      <div class="table-controls">
+        <div class="table-title">Entry detail</div>
+        <input type="search" id="tableSearch" class="table-search" placeholder="Search entry # or country…" oninput="applySearch()">
+      </div>
       <div class="filter-row">
         <button class="filter-btn active"  onclick="filterTable('all', this)">All</button>
+        <button class="filter-btn watch"   onclick="filterTable('psc-urgent', this)">PSC – Act Soon</button>
         <button class="filter-btn safe"    onclick="filterTable('psc', this)">File PSC</button>
         <button class="filter-btn urgent"  onclick="filterTable('urgent', this)">Protest — Urgent</button>
         <button class="filter-btn watch"   onclick="filterTable('watch', this)">Protest — Watch</button>
@@ -901,6 +956,7 @@
   <div class="share-row">
     <button class="btn-outline" onclick="shareToolCopy()">Copy tool link</button>
     <button class="btn-outline" onclick="showScreen('screen-results')">← Back to results</button>
+    <button class="btn-outline" onclick="resetToUpload()">↺ Analyze another file</button>
   </div>
 </div>
 
@@ -934,6 +990,17 @@
   </a>
   <span class="built-by-sep">·</span>
   <a href="https://calendar.app.google/dEPUjzLs3PC5fX5N9" target="_blank" rel="noopener">Book a free assessment →</a>
+</div>
+
+<!-- ENTRY DETAIL MODAL -->
+<div id="entryModal" class="modal-overlay" onclick="closeModal(event)" style="display:none">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">Entry Detail</div>
+      <button class="modal-close" onclick="document.getElementById('entryModal').style.display='none'">✕</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
 </div>
 
 <script>
@@ -993,7 +1060,11 @@ function loadSampleData() {
     { entry: '3311-2025-010', date: '2025-11-18', country: 'Taiwan',  hts: '9903.02.08', duty: 33600,  enteredValue: 232000, sec301Duty: 58000,   liqDate: null,         liqStatus: 'Unliquidated' },
     { entry: '3311-2025-011', date: '2025-05-06', country: 'China',   hts: '9903.01.25', duty: 29400,  enteredValue: 203000, sec301Duty: 50750,   liqDate: null,         liqStatus: 'Unliquidated' },
   ];
-  processEntries(sample);
+  processEntries(sample.map(e => {
+    e.tariffType = getTariffType(e.hts);
+    e.types = new Set([e.tariffType]);
+    return enrichEntry(e);
+  }));
 }
 
 // ---- FILE UPLOAD ----
@@ -1281,6 +1352,7 @@ function renderResults() {
     warnBanner.style.display = 'none';
   }
 
+  renderCountryChart();
   renderCostChart();
 
   // Trigger qualification card after delay
@@ -1366,7 +1438,7 @@ function renderTable() {
   } else {
     empty.style.display = 'none';
     tbody.innerHTML = sorted.map(e => `
-      <tr>
+      <tr style="cursor:pointer" onclick="openEntryModal(${JSON.stringify(e).replace(/"/g,'&quot;')})">
         <td>${e.entry}</td>
         <td>${formatDate(e.date)}</td>
         <td class="text">${e.country || '—'}</td>
@@ -1397,17 +1469,35 @@ function badgeHTML(status) {
     'expired':    ['badge-open',   'CIT Risk'],
     'unknown':    ['badge-open',   'Unknown'],
   };
+  const tooltips = {
+    'psc':        'Pre-liquidation: file a Post Summary Correction before CBP liquidates this entry.',
+    'psc-urgent': 'Estimated liquidation within 30 days — file PSC immediately.',
+    'urgent':     'Protest window closes within 90 days (19 USC § 1514). Act now.',
+    'watch':      'Protest window closes within 180 days. Schedule filing.',
+    'safe':       'Protest window open. Monitor and file before deadline.',
+    'expired':    'Protest window closed. May be recoverable via Court of International Trade.',
+    'unknown':    'Liquidation status unknown.',
+  };
   const [cls, label] = map[status] || ['badge-open', status];
-  return `<span class="badge ${cls}">${label}</span>`;
+  return `<span class="badge ${cls}" title="${tooltips[status] || ''}">${label}</span>`;
 }
 
 function filterTable(f, btn) {
   currentFilter = f;
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  if (f === 'all') filteredEntries = [...allEntries];
-  else if (f === 'psc') filteredEntries = allEntries.filter(e => e.status === 'psc' || e.status === 'psc-urgent');
-  else filteredEntries = allEntries.filter(e => e.status === f);
+  applySearch();
+}
+
+function applySearch() {
+  const q = (document.getElementById('tableSearch')?.value || '').trim().toLowerCase();
+  let base;
+  if (currentFilter === 'all') base = [...allEntries];
+  else if (currentFilter === 'psc') base = allEntries.filter(e => e.status === 'psc' || e.status === 'psc-urgent');
+  else base = allEntries.filter(e => e.status === currentFilter);
+  filteredEntries = q ? base.filter(e =>
+    e.entry.toLowerCase().includes(q) || (e.country || '').toLowerCase().includes(q)
+  ) : base;
   renderTable();
 }
 
@@ -1583,6 +1673,78 @@ function shareToolCopy() {
   navigator.clipboard.writeText(window.location.href).then(() => {
     alert('Link copied to clipboard!');
   });
+}
+
+// ---- RESET ----
+function resetToUpload() {
+  allEntries = []; filteredEntries = [];
+  document.getElementById('fileInput').value = '';
+  const errEl = document.getElementById('uploadError');
+  errEl.textContent = '';
+  errEl.classList.remove('visible');
+  document.getElementById('tableSearch').value = '';
+  currentFilter = 'all';
+  showScreen('screen-landing');
+}
+
+// ---- COUNTRY CHART ----
+function renderCountryChart() {
+  const byCountry = {};
+  allEntries.forEach(e => {
+    const c = e.country || 'Unknown';
+    byCountry[c] = (byCountry[c] || 0) + e.duty;
+  });
+  const sorted = Object.entries(byCountry).sort((a,b) => b[1]-a[1]).slice(0, 8);
+  const section = document.getElementById('countryChartSection');
+  if (sorted.length <= 1) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  const max = sorted[0][1];
+  document.getElementById('countryChart').innerHTML = sorted.map(([country, amt]) =>
+    `<div class="country-bar-row">
+      <div class="country-bar-label" title="${country}">${country}</div>
+      <div class="country-bar-track"><div class="country-bar-fill" style="width:${Math.round(amt/max*100)}%"></div></div>
+      <div class="country-bar-amt">${formatMoney(amt)}</div>
+    </div>`
+  ).join('');
+}
+
+// ---- ENTRY MODAL ----
+function openEntryModal(entry) {
+  document.getElementById('modalTitle').textContent = 'Entry ' + entry.entry;
+  const pathLabels = {
+    psc: 'Post Summary Correction (PSC)',
+    protest: 'Protest (19 USC § 1514)',
+    cit: 'CIT — window expired',
+    unknown: 'Unknown',
+  };
+  const pathNotes = {
+    psc: 'This entry has not yet liquidated. A Post Summary Correction is the fastest and cleanest refund path — file before CBP liquidates.',
+    protest: 'This entry has liquidated. File a Protest under 19 USC § 1514 within 180 days of the liquidation date.',
+    cit: 'The 180-day protest window has closed. Recovery may be possible via the Court of International Trade.',
+    unknown: 'Liquidation status could not be determined from the file.',
+  };
+  const rows = [
+    ['Entry date', formatDate(entry.date)],
+    ['Country', entry.country || '—'],
+    ['Tariff type', entry.tariffType || 'IEEPA'],
+    ['IEEPA duty', formatMoney(entry.duty)],
+    ['Est. interest', formatMoney(entry.interest)],
+    ['Total recovery', formatMoney((entry.duty || 0) + (entry.interest || 0))],
+    ['Liquidation', entry.liqDateObj ? formatDate(new Date(entry.liqDateObj)) + (entry.liqEstimated ? ' (est.)' : '') : '—'],
+    ['Protest deadline', entry.protestDeadline ? formatDate(new Date(entry.protestDeadline)) : '—'],
+    ['Refund path', pathLabels[entry.refundPath] || entry.refundPath],
+  ];
+  const note = pathNotes[entry.refundPath] || '';
+  document.getElementById('modalBody').innerHTML =
+    rows.map(([l,v]) => `<div class="modal-row"><span class="modal-label">${l}</span><span class="modal-value">${v}</span></div>`).join('') +
+    (note ? `<div class="modal-path-note">${note}</div>` : '');
+  document.getElementById('entryModal').style.display = 'flex';
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('entryModal')) {
+    document.getElementById('entryModal').style.display = 'none';
+  }
 }
 </script>
 </body>
